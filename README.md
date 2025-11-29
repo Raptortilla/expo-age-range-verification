@@ -2,7 +2,9 @@
 
 Get age verification and consent for compliance with some states laws
 
-🚧 Work in progress - ETA: before January 1st, 2026 🚧
+🚧 **Work in progress - ETA: before January 1st, 2026** 🚧
+
+🚧 **Current idea is to publish the module to NPM** 🚧
 
 # API documentation
 
