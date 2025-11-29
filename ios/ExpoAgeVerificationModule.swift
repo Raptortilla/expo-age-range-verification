@@ -1,48 +1,77 @@
 import ExpoModulesCore
+import DeclaredAgeRange // iOS 26+ framework
 
-public class ExpoAgeVerificationModule: Module {
-  // Each module class must implement the definition function. The definition consists of components
-  // that describes the module's functionality and behavior.
-  // See https://docs.expo.dev/modules/module-api for more details about available components.
-  public func definition() -> ModuleDefinition {
-    // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
-    // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
-    // The module will be accessible from `requireNativeModule('ExpoAgeVerification')` in JavaScript.
-    Name("ExpoAgeVerification")
+// Simple error type so we can send clear messages to JS
+enum AgeVerificationError: Error {
+  case notSupported
+  case noViewController
+}
 
-    // Defines constant property on the module.
-    Constant("PI") {
-      Double.pi
-    }
-
-    // Defines event names that the module can send to JavaScript.
-    Events("onChange")
-
-    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
-    Function("hello") {
-      return "Hello world! 👋"
-    }
-
-    // Defines a JavaScript function that always returns a Promise and whose native code
-    // is by default dispatched on the different thread than the JavaScript runtime runs on.
-    AsyncFunction("setValueAsync") { (value: String) in
-      // Send an event to JavaScript.
-      self.sendEvent("onChange", [
-        "value": value
-      ])
-    }
-
-    // Enables the module to be used as a native view. Definition components that are accepted as part of the
-    // view definition: Prop, Events.
-    View(ExpoAgeVerificationView.self) {
-      // Defines a setter for the `url` prop.
-      Prop("url") { (view: ExpoAgeVerificationView, url: URL) in
-        if view.webView.url != url {
-          view.webView.load(URLRequest(url: url))
-        }
-      }
-
-      Events("onLoad")
+extension AgeVerificationError: LocalizedError {
+  var errorDescription: String? {
+    switch self {
+    case .notSupported:
+      return "Declared Age Range is only available on iOS 26+ with the required entitlement."
+    case .noViewController:
+      return "Unable to find a presenting view controller."
     }
   }
 }
+
+public class ExpoAgeVerificationModule: Module {
+  public func definition() -> ModuleDefinition {
+    Name("ExpoAgeVerification")
+
+    // iOS-specific function – JS will call this
+    AsyncFunction("requestDeclaredAgeRange") { (ageGates: [Int]) -> [String: Any] in
+      // Only available on iOS 26+
+      guard #available(iOS 26.0, *) else {
+        throw AgeVerificationError.notSupported
+      }
+
+      // Get the current view controller from Expo
+      guard let viewController = self.appContext?.utilities?.currentViewController() else {
+        throw AgeVerificationError.noViewController
+      }
+
+      // Apple allows 1–3 age gates; you can validate here if you want
+      let sortedGates = ageGates.sorted()
+
+      // UIKit call – AgeRangeService is the core API :contentReference[oaicite:4]{index=4}
+      let response = try await AgeRangeService.shared.requestAgeRange(
+        ageGates: sortedGates.first ?? 13,
+        // Apple’s signature actually accepts up to 3 age gates,
+        // but the first one is enough for many cases; you can expand later.
+        in: viewController
+      )
+
+      // Map enum to a JS-usable dictionary
+      switch response {
+        case .declinedSharing:
+          return [
+            "status": "declinedSharing",
+            "range": NSNull(),
+            "metadata": [:]  // nothing extra for now
+          ]
+
+        case .sharing(let range):
+          var rangeDict: [String: Any] = [:]
+          if let lower = range.lowerBound {
+            rangeDict["lowerBound"] = lower
+          }
+          if let upper = range.upperBound {
+            rangeDict["upperBound"] = upper
+          }
+
+          return [
+            "status": "sharing",
+            "range": rangeDict,
+            "metadata": [:]
+          ]
+      }
+
+    }
+  }
+}
+
+
