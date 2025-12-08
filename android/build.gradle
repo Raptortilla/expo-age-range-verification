@@ -41,3 +41,10 @@ android {
     abortOnError false
   }
 }
+
+dependencies {
+  // Do NOT re-add expo-modules-core or Kotlin here.
+  // The expo modules plugin (useCoreDependencies/applyKotlin...) already handles that.
+
+  implementation "com.google.android.play:age-signals:0.0.1-beta02"
+}

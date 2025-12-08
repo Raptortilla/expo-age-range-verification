@@ -1,12 +1,8 @@
-import { NativeModule, requireNativeModule } from 'expo';
+// src/ExpoAgeVerificationModule.ts
+import { requireNativeModule } from "expo-modules-core";
 
-import { ExpoAgeVerificationModuleEvents } from './ExpoAgeVerification.types';
+// This MUST match the name() in ExpoAgeVerificationModule.kt
+// Name("ExpoAgeVerification")
+const ExpoAgeVerification = requireNativeModule("ExpoAgeVerification");
 
-declare class ExpoAgeVerificationModule extends NativeModule<ExpoAgeVerificationModuleEvents> {
-  PI: number;
-  hello(): string;
-  setValueAsync(value: string): Promise<void>;
-}
-
-// This call loads the native module object from the JSI.
-export default requireNativeModule<ExpoAgeVerificationModule>('ExpoAgeVerification');
+export default ExpoAgeVerification;
